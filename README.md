@@ -7,6 +7,9 @@ anyone logging in. Your VPS then shows up at claude.ai/code and in the Claude mo
 This is an agent skill. It can be installed with `npx skills` and used by Claude Code, or run
 directly as a shell script.
 
+Related: [opencode-rc-vps-setup](https://github.com/farghees/opencode-rc-vps-setup) does the same
+for OpenCode web (password-protected, bound to a Tailscale address).
+
 > **Not affiliated with Anthropic. Use at your own risk.** The scripts change systemd user
 > configuration, enable linger (which needs sudo), and edit nothing else, but read them before running.
 
