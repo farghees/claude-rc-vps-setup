@@ -46,7 +46,12 @@ TMUX_BIN="$(command -v tmux 2>/dev/null || true)"
 CLAUDE_BIN="$(command -v claude 2>/dev/null || true)"
 [ -n "$CLAUDE_BIN" ] || CLAUDE_BIN="$HOME/.local/bin/claude"   # native installer default
 [ -x "$CLAUDE_BIN" ] || die "claude not found. Install Claude Code first, log in, then re-run."
-CLAUDE_BIN="$(readlink -f "$CLAUDE_BIN")"
+# Keep the stable launcher path (e.g. ~/.local/bin/claude). Do NOT resolve symlinks: the launcher
+# points at a versioned binary under ~/.local/share/claude/versions/, which is removed on auto-update.
+case "$CLAUDE_BIN" in
+  /*) ;;
+  *) CLAUDE_BIN="$(pwd)/$CLAUDE_BIN" ;;
+esac
 
 [[ "$RC_NAME" =~ ^[A-Za-z0-9._-]+$ ]] || die "--name may only contain letters, digits, '.', '_' and '-'."
 [ -d "$WORKDIR" ] || die "--workdir does not exist: $WORKDIR"

@@ -81,7 +81,8 @@ for tmux and claude, the working directory and the name, so nothing is hardcoded
 2. **Trust the directory.** `cd <workdir> && claude`, accept the trust prompt, then `/exit`.
 3. **Write the unit.** Copy `templates/claude-rc.service` to `~/.config/systemd/user/claude-rc.service`,
    replacing `__TMUX__`, `__CLAUDE__`, `__WORKDIR__` and `__RC_NAME__` with absolute paths and the name.
-   Get the paths with `command -v tmux` and `readlink -f "$(command -v claude)"`.
+   Get the paths with `command -v tmux` and `command -v claude`. Keep the launcher path as it is
+   (normally `~/.local/bin/claude`); do not resolve it with `readlink -f` (see troubleshooting).
 4. **Enable linger.** `sudo loginctl enable-linger "$USER"`. Check with `loginctl show-user "$USER" -p Linger`
    (should print `Linger=yes`).
 5. **Start.** `systemctl --user daemon-reload && systemctl --user enable --now claude-rc.service`.
@@ -169,6 +170,7 @@ journalctl --user -u claude-rc -n 50           # systemd side (start/stop events
 | Session gone after reboot | Linger not enabled, so the user manager does not start at boot | `sudo loginctl enable-linger "$USER"`; check `loginctl show-user "$USER" -p Linger` |
 | `Failed to connect to bus` for `systemctl --user` over SSH | No `XDG_RUNTIME_DIR` in the SSH session | `export XDG_RUNTIME_DIR=/run/user/$(id -u)` |
 | `claude: command not found` in the unit's logs | Unit used a bare `claude`, or the path changed after an update | Re-run `install.sh` so the absolute path is rewritten |
+| unit breaks after Claude auto-update (`No such file or directory` in ExecStart) | Unit pointed at a versioned binary (e.g. `~/.local/share/claude/versions/2.1.323`), which is removed on update. Caused by resolving the launcher with `readlink -f` in an older `install.sh` | Use the stable launcher `~/.local/bin/claude`: check `grep ExecStart ~/.config/systemd/user/claude-rc.service`, update the unit's path to `~/.local/bin/claude` (or re-run the current `install.sh`), then `systemctl --user daemon-reload && systemctl --user restart claude-rc` |
 | `duplicate session: rc` when starting | A manual `rc` session already exists on the `claude-rc` socket | The unit's `ExecStartPre` kills that server. To clear it by hand: `tmux -L claude-rc kill-server` |
 | Session drops when the VPS is idle or suspended | The VPS is asleep or offline | Use an always-on VPS. Remote Control runs locally: when this machine stops, the session stops |
 | Unit shows `active` after claude crashed | `Restart=no`: tmux closes when claude exits, and systemd may still report the unit as active | Check `tmux -L claude-rc ls` and the `rc` pane. Not tested on another host; switching to `Restart=on-failure` is an untested option |
