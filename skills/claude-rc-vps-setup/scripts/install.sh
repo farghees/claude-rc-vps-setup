@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Install Claude Code Remote Control as a systemd user service running in tmux session "rc".
+# Install Claude Code Remote Control as a systemd user service running in tmux session "rc"
+# on its own tmux socket ("claude-rc", so it never shares a tmux server with other sessions).
 # Idempotent: safe to re-run. Overwrites the unit (keeping a timestamped backup if it changed).
 #
 # Usage:
@@ -21,7 +22,7 @@ say()  { printf '\n==> %s\n' "$*"; }
 warn() { printf 'WARNING: %s\n' "$*" >&2; }
 die()  { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
-usage() { sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; }
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -125,13 +126,13 @@ sleep 6
 
 # ---------- 5. Check the session and the first-run consent ----------
 say "Checking session"
-if tmux has-session -t rc 2>/dev/null; then
-  PANE="$(tmux capture-pane -p -t rc 2>/dev/null || true)"
+if tmux -L claude-rc has-session -t rc 2>/dev/null; then
+  PANE="$(tmux -L claude-rc capture-pane -p -t rc 2>/dev/null || true)"
   if grep -qi 'y/n' <<<"$PANE"; then
     cat <<EOF
 Remote Control is waiting for first-time consent ("Enable Remote Control? (y/n)").
 This must be answered at a real terminal; piping 'y' in does not work. Do this once:
-  tmux attach -t rc      # type y, press Enter
+  tmux -L claude-rc attach -t rc      # type y, press Enter
   then detach with:      Ctrl-b, then d   (do NOT press Ctrl-c: that stops the session)
 EOF
   elif grep -qi 'connected' <<<"$PANE"; then
@@ -141,14 +142,14 @@ EOF
     tail -n 8 <<<"$PANE"
   fi
 else
-  warn "tmux session 'rc' not found. Check: systemctl --user status claude-rc ; journalctl --user -u claude-rc -n 50"
+  warn "tmux session 'rc' not found on socket claude-rc. Check: systemctl --user status claude-rc ; journalctl --user -u claude-rc -n 50"
 fi
 
 say "Verify later"
 cat <<EOF
   systemctl --user status claude-rc
   loginctl show-user $ME -p Linger
-  tmux ls
-  tmux attach -r -t rc          # read-only view; detach with Ctrl-b, then d
+  tmux -L claude-rc ls
+  tmux -L claude-rc attach -r -t rc   # read-only view; detach with Ctrl-b, then d
   Then look for '$RC_NAME' at https://claude.ai/code
 EOF

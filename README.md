@@ -10,6 +10,10 @@ directly as a shell script.
 Related: [opencode-rc-vps-setup](https://github.com/farghees/opencode-rc-vps-setup) does the same
 for OpenCode web (password-protected, bound to a Tailscale address).
 
+Tailscale Serve does not apply here. Claude Remote Control has no local web UI and no port to
+publish. You reach the session through claude.ai/code or the Claude app, so this skill has no
+serve option and should not get one.
+
 > **Not affiliated with Anthropic. Use at your own risk.** The scripts change systemd user
 > configuration, enable linger (which needs sudo), and edit nothing else, but read them before running.
 
@@ -54,9 +58,17 @@ working directory (default: `$HOME`).
 The first run stops at `Enable Remote Control? (y/n)`. It must be answered in a real terminal:
 
 ```bash
-tmux attach -t rc     # type y, press Enter
+tmux -L claude-rc attach -t rc     # type y, press Enter
 # detach with Ctrl-b then d   (do NOT press Ctrl-c, that stops the session)
 ```
+
+The session runs on its own tmux socket (`-L claude-rc`), so every tmux command for it needs that flag.
+
+## Upgrading from an earlier version
+
+Earlier versions ran the session on the default tmux server. Re-run `install.sh` to move it to the
+`claude-rc` socket. The old unit is backed up. If an old `rc` session is still on the default server
+and it is the Remote Control one, remove it with `tmux kill-session -t rc` (check `tmux ls` first).
 
 ## Environment gotcha: telemetry opt-outs
 
@@ -71,8 +83,8 @@ are in `settings.json`.
 systemctl --user status claude-rc
 systemctl --user is-enabled claude-rc
 loginctl show-user "$USER" -p Linger        # Linger=yes
-tmux ls
-tmux attach -r -t rc                        # read-only view; detach with Ctrl-b, then d
+tmux -L claude-rc ls
+tmux -L claude-rc attach -r -t rc           # read-only view; detach with Ctrl-b, then d
 ```
 
 Then look for the session name at https://claude.ai/code.

@@ -16,12 +16,16 @@ Type=forking
 WorkingDirectory=__WORKDIR__
 # systemd's user manager has a minimal PATH; give claude and its helpers the usual dirs.
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
-# Clear any old session with the same name so a restart never fails with "duplicate session".
-ExecStartPre=-__TMUX__ kill-session -t rc
+# Wait up to 60s for DNS (api.anthropic.com) at boot. Always exits 0, so the start
+# still proceeds if the network is slow; a failure then shows up in the claude logs.
+ExecStartPre=/bin/bash -c 'for i in $(seq 60); do getent hosts api.anthropic.com >/dev/null 2>&1 && exit 0; sleep 1; done; exit 0'
+# Use a dedicated tmux socket (-L claude-rc) so this unit never shares a tmux server with
+# the user's own sessions. Clear any old server on that socket so a restart never fails.
+ExecStartPre=-__TMUX__ -L claude-rc kill-server
 # tmux -d detaches immediately. `env -u` removes the two telemetry opt-outs for this
 # process only: Remote Control refuses to start while they are set.
-ExecStart=__TMUX__ new -d -s rc "env -u DISABLE_TELEMETRY -u CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC __CLAUDE__ remote-control --name __RC_NAME__"
-ExecStop=__TMUX__ kill-session -t rc
+ExecStart=__TMUX__ -L claude-rc new -d -s rc "env -u DISABLE_TELEMETRY -u CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC __CLAUDE__ remote-control --name __RC_NAME__"
+ExecStop=__TMUX__ -L claude-rc kill-server
 # Restart=no mirrors the working unit on the reference host. See SKILL.md (troubleshooting)
 # before switching to on-failure: a crashed claude closes the tmux session cleanly.
 Restart=no

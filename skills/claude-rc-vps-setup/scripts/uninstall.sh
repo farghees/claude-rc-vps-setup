@@ -18,7 +18,7 @@ esac
 
 echo "==> Stopping and disabling claude-rc"
 systemctl --user disable --now claude-rc.service 2>/dev/null || true
-tmux kill-session -t rc 2>/dev/null || true
+tmux -L claude-rc kill-server 2>/dev/null || true
 
 echo "==> Removing unit"
 rm -f "$UNIT"
